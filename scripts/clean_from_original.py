@@ -3,7 +3,7 @@ import csv
 import pandas as pd
 import warnings
 
-OUTPUT_PATH = '../data'
+OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../data')
 
 ORIGINAL_PATH = os.path.join(OUTPUT_PATH, 'original_datasets')
 OUTPUT_CLEAN = os.path.join(OUTPUT_PATH, 'clean')
