@@ -2,6 +2,8 @@
 
 ---
 
+To run `scripts\poison_clean_data.py` you need to `pip install -r requirements.txt`, and also need to have [poisoning](https://github.com/rpgolota/poisoning/) installed from github, as it is not on PyPi.
+
 Current attack creation progress is about 25%, but that is misleading since it is going from smallest to largest in terms of sample size.
 
 - To create attacks, run the script `scripts\poison_clean_data.py`. It should resume where it left off.
