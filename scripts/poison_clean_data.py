@@ -15,6 +15,8 @@ FILENAMES_PATH = 'filenames_by_samples.txt'
 POISON_PERCENT = 0.2
 POISON_PROJECTIONS = [0.5, 1, 1.5, 2, 2.5, 5]
 
+VERBOSE = True
+
 def write_attacks(filename, poisoned, labels):
     d1 = pd.DataFrame(poisoned)
     d2 = pd.DataFrame(labels)
@@ -35,6 +37,9 @@ def poison_clean(filename, progress_update):
     
     for projection in POISON_PROJECTIONS:
         new_filename = create_filename(filename, projection)
+        
+        if VERBOSE:
+            print(f'    + Projection: {projection}')
         
         # if file exists already, skip
         if os.path.exists(os.path.join(ATTACKS_PATH, new_filename)):
@@ -57,7 +62,8 @@ def main():
         def update():
             progress.advance(t2)
         for file in files:
-            print(f'Working on: {file}')
+            if VERBOSE:
+                print(f'File: {file}')
             poison_clean(file, update)
             progress.advance(t1)
             progress.reset(t2)
