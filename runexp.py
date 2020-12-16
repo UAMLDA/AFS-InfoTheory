@@ -21,35 +21,29 @@
 
 
 import numpy as np 
+import pandas as pd 
 import skfeature as skf
 
 import argparse
 
 from utils import kuncheva, jaccard
 
+# setup program constants 
+data_folder = 'data/'
 
 def main(args):
 
-    # load normal data 
-    # 
+    # load normal and adversarial data 
+    df_normal = pd.read_csv('data/clean/' + args.data + '.csv')
+    df_adversarial = pd.read_csv('data/attacks/' + args.data + '_[xiao][' + str(.5) + '].csv') 
+
     # load adversarial data
-    # 
     n = 10000
     n_train = 1000
 
     for k in range(args.cv): 
         # shuffle up the data for the experiment 
-        idx = np.random.permutation(n)
-        idx_tr, idx_te = idx[:n_train], idx[n_train:]
-
-        # sample poison percentage w/ args.poison
-
-        # run baseline: JMI, MIM, mRMR, etc. 
-
-        # measure stability (kuncheva, jaccard, noriega)
-
-        # classification: acc, f1, etc [kNN, CART,...]
-
+        k
     # average out stability
 
     # write the results to a file
@@ -57,21 +51,31 @@ def main(args):
 
 if __name__ == '__main__': 
     # set up the parser
-    parser = argparse.ArgumentParser(description='Run the experiments for the IJCNN 2021 paper.') 
-    parser.add_argument('cv', 
-                        metavar='c', 
+    parser = argparse.ArgumentParser(description='Run the experiments for the IJCNN 2021 paper.', 
+                                     prog='runexp', 
+                                     usage='%(prog)s [options]',) 
+    parser.add_argument('-c', 
+                        '--cv', 
                         type=int, 
-                        default=5)
-    parser.add_argument('data', 
-                        metavar='d', 
-                        type=str)
-    parser.add_argument('poison', 
-                        metavar='p', 
-                        type=float)
-    parser.add_argument('output', 
-                        metavar='o', 
+                        default=5, 
+                        help='cross-validation parameter [int]')
+    parser.add_argument('-d', 
+                        '--data', 
                         type=str, 
-                        default='results/')
+                        help='dataset name without csv or the path [str]')
+    parser.add_argument('-p', 
+                        '--poison', 
+                        type=float, 
+                        help='percentage of poison data to add [float]')
+    parser.add_argument('-b', 
+                        '--box', 
+                        type=float, 
+                        help='bounding box [float]. note the file must be in the data folder.')
+    parser.add_argument('-o', 
+                        '--output', 
+                        type=str, 
+                        default='results/',
+                        help='output [str]')
     args = parser.parse_args()
     # run
     main(args)
