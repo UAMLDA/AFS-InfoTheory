@@ -42,6 +42,8 @@ FEAT_IDX = 0
 # number of cross validation runs to perform
 CV = 5
 # dataset names 
+# did not run 
+#   - bank, miniboone, ozone, spambase, connect-4, oocytes_merluccius_nucleus_4d
 DATA = [
         'conn-bench-sonar-mines-rocks',
         'ionosphere',
@@ -164,7 +166,7 @@ if __name__ == '__main__':
 
     for data in DATA: 
         for box in BOX: 
-            print('Running ' + data)
+            print('Running ' + data + ' - box:' + box)
             try: 
                 experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
             except: 
