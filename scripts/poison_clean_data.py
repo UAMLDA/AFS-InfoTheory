@@ -63,21 +63,24 @@ def poison_clean(filename, progress_update):
 def main():
     with open(os.path.join(DATA_PATH, FILENAMES_PATH), 'r') as f:
         files = [file.strip() for file in f.readlines()]
-        
-    with Progress() as progress:
-        t1 = progress.add_task(f"[bold red]Running Files ({len(files)})...", total=len(files))
-        t2 = progress.add_task(f"[bold blue]Running Models ({len(POISON_TYPES)})...", total=len(POISON_TYPES))
-        t3 = progress.add_task(f"[bold blue]Running Projections ({len(POISON_PROJECTIONS)})...", total=len(POISON_PROJECTIONS))
-        proc = [t1, t2, t3]
-        def update(i):
-            progress.advance(proc[i])
-        for file in files:
-            if VERBOSE:
-                print(f'File: {file}')
-            poison_clean(file, update)
-            progress.advance(t1)
-            progress.reset(t2)
-            progress.reset(t3)
+    
+    with open(os.path.join(DATA_PATH, 'completed.txt'), 'w') as completed:
+        with Progress() as progress:
+            t1 = progress.add_task(f"[bold red]Running Files ({len(files)})...", total=len(files))
+            t2 = progress.add_task(f"[bold blue]Running Models ({len(POISON_TYPES)})...", total=len(POISON_TYPES))
+            t3 = progress.add_task(f"[bold blue]Running Projections ({len(POISON_PROJECTIONS)})...", total=len(POISON_PROJECTIONS))
+            proc = [t1, t2, t3]
+            def update(i):
+                progress.advance(proc[i])
+            for file in files:
+                if VERBOSE:
+                    print(f'File: {file}')
+                poison_clean(file, update)
+                completed.write(f'{file}\n')
+                completed.flush()
+                progress.advance(t1)
+                progress.reset(t2)
+                progress.reset(t3)
 
 if __name__ == "__main__":
     main()
