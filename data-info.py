@@ -28,9 +28,7 @@ if __name__ == '__main__':
     print ('# Dataset Information')
     for file in glob.glob('data/clean/*.csv'): 
         n,d = pd.read_csv(file, header=None).values.shape
-        print('- [' + file[11:-4] +']('+file+') - ')
+        print('- [' + file[11:-4] +']('+file+') ')
         print('  - Samples = ' + str(n))
         print('  - Features = ' + str(d))
-        #print('* ' + file + ' (n = ' + str(n) + ') (p =' + str(d) + ')')
-
 
