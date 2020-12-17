@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd 
 import skfeature as skf
 import argparse
+
 from utils import kuncheva, jaccard
 from skfeature.function.information_theoretical_based import JMI, MIM, MRMR, MIFS
 
@@ -36,8 +37,8 @@ NALG = 4
 FEAT_IDX = 0
 
 def main():
-    #data, box, cv = args.data, args.box, args.cv
-    data, box, cv = 'blood', '1', 5
+    #data, box, cv, output = args.data, args.box, args.cv, args.output
+    data, box, cv, output = 'conn-bench-sonar-mines-rocks', '1', 5, 'results/test.npz'
 
     # load normal and adversarial data 
     path_adversarial_data = 'data/attacks/' + data + '_[xiao][' + box + '].csv'
@@ -54,26 +55,49 @@ def main():
     N = len(Xn)
     Ntr, Nte = int(p1*N), int(p0*N)
     n_selected_features = int(Xn.shape[1]*SEL_PERCENT)+2
-    Npoi = np.array(POI_RNG)*Ntr
 
-    idx_jaccard, idx_kuncheva = np.zeros((NPR, NALG)), np.zeros((NPR, NALG))    
+    err_jaccard, err_kuncheva = np.zeros((NPR, NALG)), np.zeros((NPR, NALG))    
 
-    for k in range(cv): 
+    for _ in range(cv): 
         # shuffle up the data for the experiment 
         i = np.random.permutation(N)
         Xtrk, ytrk, Xtek, ytek = Xn[i][:Ntr], yn[i][:Ntr], Xn[i][Nte:], yn[i][Nte:]
 
         # run feature selection on the baseline dataset without an adversarial data 
         sf_base_jmi, sf_base_mim, sf_base_mrmr, sf_base_mifs = \
-            JMI.jmi(Xtrk, ytrk, n_selected_features=n_selected_features), \
-            MIM.mim(Xtrk, ytrk, n_selected_features=n_selected_features), \
-            MRMR.mrmr(Xtrk, ytrk, n_selected_features=n_selected_features), \
-            MIFS.mifs(Xtrk, ytrk, n_selected_features=n_selected_features)
+            JMI.jmi(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
+            MIM.mim(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
+            MRMR.mrmr(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
+            MIFS.mifs(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX]
 
-        print(jaccard(sf_base_jmi[FEAT_IDX], sf_base_mim[FEAT_IDX]))
-    # average out stability
+        for n in range(NPR): 
+            Np = int(len(ytrk)*POI_RNG[n]+1)
+            if Np >= len(ya): 
+                ValueError('Number of poison data requested is larger than the available data.')
+            Nn = len(ytrk) - Np
+            idx_normal, idx_adversarial = np.random.permutation(len(ytrk))[:Nn], \
+                                          np.random.permutation(len(ya))[:Np]
+            Xtrk_poisoned, ytrk_poisoned = np.concatenate((Xtrk[idx_normal], Xa[idx_adversarial])), \
+                                           np.concatenate((ytrk[idx_normal], ya[idx_adversarial]))
+            sf_adv_jmi, sf_adv_mim, sf_adv_mrmr, sf_adv_mifs = \
+                JMI.jmi(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
+                MIM.mim(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
+                MRMR.mrmr(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
+                MIFS.mifs(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX]
 
-    # write the results to a file
+            err_jaccard[n, 0] += jaccard(sf_adv_mim, sf_base_mim)
+            err_jaccard[n, 1] += jaccard(sf_adv_mifs, sf_base_mifs)
+            err_jaccard[n, 2] += jaccard(sf_adv_mrmr, sf_base_mrmr)
+            err_jaccard[n, 3] += jaccard(sf_adv_jmi, sf_base_jmi)
+
+            err_kuncheva[n, 0] += kuncheva(sf_adv_mim, sf_base_mim, Xtrk.shape[1])
+            err_kuncheva[n, 1] += kuncheva(sf_adv_mifs, sf_base_mifs, Xtrk.shape[1])
+            err_kuncheva[n, 2] += kuncheva(sf_adv_mrmr, sf_base_mrmr, Xtrk.shape[1])
+            err_kuncheva[n, 3] += kuncheva(sf_adv_jmi, sf_base_jmi, Xtrk.shape[1])
+
+    err_jaccard,  err_kuncheva = err_jaccard/cv, err_kuncheva/cv
+    np.savez(output, err_jaccard=err_jaccard, err_kuncheva=err_kuncheva)
+
     return None
 
 if __name__ == '__main__': 
@@ -104,6 +128,11 @@ if __name__ == '__main__':
                         type=str, 
                         default='results/',
                         help='output [str]')
+    parser.add_argument('-v', 
+                        '--verbose', 
+                        type=bool, 
+                        default=False,
+                        help='verbose [str]')
     args = parser.parse_args()
     # run
     main(args)
