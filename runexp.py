@@ -19,7 +19,6 @@
 # OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR 
 # OTHER DEALINGS IN THE SOFTWARE.
 
-
 import numpy as np 
 import pandas as pd 
 import skfeature as skf
@@ -28,26 +27,85 @@ import argparse
 from utils import kuncheva, jaccard
 from skfeature.function.information_theoretical_based import JMI, MIM, MRMR, MIFS
 
-# setup program constants 
-data_folder = 'data/'
+# -----------------------------------------------------------------------
+# # setup program constants 
+# percentage of poisoning levels  
 POI_RNG = [.01, .025, .05, .075, .1, .125, .15, .175, .2]
+# total number of poisoning levels 
 NPR = len(POI_RNG)
+# percentage of features that we want to select 
 SEL_PERCENT = .1
+# number of algorithms that we are going to test [JMI, MIM, MRMR, MIFS]
 NALG = 4
+# used when we select features 
 FEAT_IDX = 0
+# number of cross validation runs to perform
+CV = 5
+# dataset names 
+DATA = [
+        'conn-bench-sonar-mines-rocks',
+        'ionosphere',
+        'bank',
+        'oocytes_trisopterus_nucleus_2f', 
+        'statlog-german-credit', 
+        'molec-biol-promoter', 
+        'miniboone', 
+        'ozone', 
+        'spambase',
+        'parkinsons', 
+        'connect-4', 
+        'oocytes_merluccius_nucleus_4d',
+        'musk-1', 
+        'musk-2', 
+        'chess-krvkp', 
+        'twonorm'
+        ]
+BOX = ['0.5', '1', '1.5', '2', '2.5', '5']
+# -----------------------------------------------------------------------
 
-def main():
-    #data, box, cv, output = args.data, args.box, args.cv, args.output
-    data, box, cv, output = 'conn-bench-sonar-mines-rocks', '1', 5, 'results/test.npz'
+
+def experiment(data, box, cv, output):
+    """
+    Write the results of an experiment.
+        This function will run an experiment for a specific dataset for a bounding box. 
+        There will be CV runs of randomized experiments run and the outputs will be 
+        written to a file. 
+
+        Parameters
+        ----------
+        data : string
+            Dataset name.
+            
+        box : string 
+            Bounding box on the file name.
+        cv : int 
+            Number of cross validation runs. 
+            
+        output : string
+            If float or tuple, the projection will be the same for all features,
+            otherwise if a list, the projection will be described feature by feature.
+                    
+        Returns
+        -------
+        None
+            
+        Raises
+        ------
+        ValueError
+            If the percent poison exceeds the number of samples in the requested data.
+    """
+    #data, box, cv, output = 'conn-bench-sonar-mines-rocks', '1', 5, 'results/test.npz'
 
     # load normal and adversarial data 
     path_adversarial_data = 'data/attacks/' + data + '_[xiao][' + box + '].csv'
     df_normal = pd.read_csv('data/clean/' + data + '.csv', header=None).values
     df_adversarial = pd.read_csv(path_adversarial_data, header=None).values
+    
+    # separate out the normal and adversarial data 
     Xn, yn = df_normal[:,:-1], df_normal[:,-1]
     Xa, ya = df_adversarial[:,:-1], df_adversarial[:,-1]
 
-    # change the labels 
+    # change the labels from +/-1 to [0,1]
     ya[ya==-1], yn[yn==-1] = 0, 0
 
     # set up the data numers 
@@ -85,6 +143,8 @@ def main():
                 MRMR.mrmr(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
                 MIFS.mifs(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX]
 
+            # calculate the accumulated jaccard and kuncheva performances for each of the 
+            # feature selection algorithms 
             err_jaccard[n, 0] += jaccard(sf_adv_mim, sf_base_mim)
             err_jaccard[n, 1] += jaccard(sf_adv_mifs, sf_base_mifs)
             err_jaccard[n, 2] += jaccard(sf_adv_mrmr, sf_base_mrmr)
@@ -101,40 +161,11 @@ def main():
     return None
 
 if __name__ == '__main__': 
-    # set up the parser
-    '''
-    parser = argparse.ArgumentParser(description='Run the experiments for the IJCNN 2021 paper.', 
-                                     prog='runexp', 
-                                     usage='%(prog)s [options]',) 
-    parser.add_argument('-c', 
-                        '--cv', 
-                        type=int, 
-                        default=5, 
-                        help='cross-validation parameter [int]')
-    parser.add_argument('-d', 
-                        '--data', 
-                        type=str, 
-                        help='dataset name without csv or the path [str]')
-    parser.add_argument('-p', 
-                        '--poison', 
-                        type=float, 
-                        help='percentage of poison data to add [float]')
-    parser.add_argument('-b', 
-                        '--box', 
-                        type=str, 
-                        help='bounding box [str]. note the file must be in the data folder.')
-    parser.add_argument('-o', 
-                        '--output', 
-                        type=str, 
-                        default='results/',
-                        help='output [str]')
-    parser.add_argument('-v', 
-                        '--verbose', 
-                        type=bool, 
-                        default=False,
-                        help='verbose [str]')
-    args = parser.parse_args()
-    # run
-    main(args)
-    '''
-    main()
+
+    for data in DATA: 
+        for box in BOX: 
+            print('Running ' + data)
+            try: 
+                experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
+            except: 
+                print(' ... ERROR ...')
