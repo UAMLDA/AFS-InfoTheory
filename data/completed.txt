@@ -31,3 +31,9 @@ oocytes_trisopterus_nucleus_2f.csv
 tic-tac-toe.csv
 mammographic.csv
 statlog-german-credit.csv
+oocytes_merluccius_nucleus_4d.csv
+titanic.csv
+ozone.csv
+chess-krvkp.csv
+bank.csv
+spambase.csv
