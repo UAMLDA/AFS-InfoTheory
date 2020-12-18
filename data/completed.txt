@@ -37,3 +37,8 @@ ozone.csv
 chess-krvkp.csv
 bank.csv
 spambase.csv
+musk-2.csv
+ringnorm.csv
+twonorm.csv
+mushroom.csv
+magic.csv
