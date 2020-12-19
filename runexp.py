@@ -43,7 +43,7 @@ FEAT_IDX = 0
 CV = 5
 # dataset names 
 # did not run 
-#   - bank, miniboone, ozone, spambase, connect-4, oocytes_merluccius_nucleus_4d
+#   - miniboone, connect-4
 DATA = [
         'conn-bench-sonar-mines-rocks',
         'ionosphere',
