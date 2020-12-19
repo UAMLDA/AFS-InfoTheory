@@ -15,7 +15,7 @@ TXT_FILENAMES_FEATURE = os.path.join(OUTPUT_PATH, 'filenames_by_features.txt')
 
 def create_clean(root, file, editor):
     
-    dataset = pd.read_csv(os.path.join(root, file), sep="\t", dtype=float)
+    dataset = pd.read_csv(os.path.join(root, file), sep="\t", dtype=float, index_col=0)
     X = dataset.iloc[:,:-1].values
     Y = dataset.iloc[:,-1].values
 
