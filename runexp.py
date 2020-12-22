@@ -151,10 +151,6 @@ def experiment(data, box, cv, output):
         # run feature selection on the baseline dataset without an adversarial data. this 
         # will serve as the baseline. use a parallel assignment to speed things up. 
         sf_base_jmi, sf_base_mim, sf_base_mrmr, sf_base_mifs = run_feature_selection(Xtrk, ytrk, n_selected_features)
-            # JMI.jmi(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
-            # MIM.mim(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
-            # MRMR.mrmr(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
-            # MIFS.mifs(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX]
 
         # loop over the number of poisoning ratios that we need to evaluate
         for n in range(NPR): 
@@ -181,10 +177,6 @@ def experiment(data, box, cv, output):
 
             # run feature selection with the training data that has adversarial samples
             sf_adv_jmi, sf_adv_mim, sf_adv_mrmr, sf_adv_mifs = run_feature_selection(Xtrk_poisoned, ytrk_poisoned, n_selected_features)
-                # JMI.jmi(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
-                # MIM.mim(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
-                # MRMR.mrmr(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
-                # MIFS.mifs(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX]
 
             # calculate the accumulated jaccard and kuncheva performances for each of the 
             # feature selection algorithms 
