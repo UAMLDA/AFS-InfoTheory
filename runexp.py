@@ -27,8 +27,12 @@ import argparse
 from utils import kuncheva, jaccard
 from skfeature.function.information_theoretical_based import JMI, MIM, MRMR, MIFS
 
+from concurrent.futures import ProcessPoolExecutor
+
 # -----------------------------------------------------------------------
-# # setup program constants 
+# # setup program constants
+# Use thread pool executor for feature selection
+PARALLEL = True
 # percentage of poisoning levels  
 POI_RNG = [.01, .025, .05, .075, .1, .125, .15, .175, .2]
 # total number of poisoning levels 
@@ -63,6 +67,24 @@ DATA = [
 BOX = ['0.5', '1', '1.5', '2', '2.5', '5']
 # -----------------------------------------------------------------------
 
+def run_feature_selection(X, Y, n_selected_features):
+    
+    lst = []
+    
+    if PARALLEL:
+        with ProcessPoolExecutor(max_workers=4) as executor:
+            lst.append(executor.submit(JMI.jmi, X, Y, n_selected_features=n_selected_features))
+            lst.append(executor.submit(MIM.mim, X, Y, n_selected_features=n_selected_features))
+            lst.append(executor.submit(MRMR.mrmr, X, Y, n_selected_features=n_selected_features))
+            lst.append(executor.submit(MIFS.mifs, X, Y, n_selected_features=n_selected_features))   
+            lst = [l.result()[FEAT_IDX] for l in lst]
+    else:
+        lst.append(JMI.jmi(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
+        lst.append(MIM.mim(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
+        lst.append(MRMR.mrmr(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
+        lst.append(MIFS.mifs(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
+
+    return lst
 
 def experiment(data, box, cv, output):
     """
@@ -126,14 +148,13 @@ def experiment(data, box, cv, output):
         # testing dataset
         i = np.random.permutation(N)
         Xtrk, ytrk, Xtek, ytek = Xn[i][:Ntr], yn[i][:Ntr], Xn[i][Nte:], yn[i][Nte:]
-
         # run feature selection on the baseline dataset without an adversarial data. this 
         # will serve as the baseline. use a parallel assignment to speed things up. 
-        sf_base_jmi, sf_base_mim, sf_base_mrmr, sf_base_mifs = \
-            JMI.jmi(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
-            MIM.mim(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
-            MRMR.mrmr(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
-            MIFS.mifs(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX]
+        sf_base_jmi, sf_base_mim, sf_base_mrmr, sf_base_mifs = run_feature_selection(Xtrk, ytrk, n_selected_features)
+            # JMI.jmi(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
+            # MIM.mim(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
+            # MRMR.mrmr(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX], \
+            # MIFS.mifs(Xtrk, ytrk, n_selected_features=n_selected_features)[FEAT_IDX]
 
         # loop over the number of poisoning ratios that we need to evaluate
         for n in range(NPR): 
@@ -147,7 +168,7 @@ def experiment(data, box, cv, output):
                 # shouldn't happen but catch the case where we are requesting more poison
                 # data samples than are available. NEED TO BE CAREFUL WHEN WE ARE CREATING 
                 # THE ADVERSARIAL DATA
-                ValueError('Number of poison data requested is larger than the available data.')
+                raise ValueError('Number of poison data requested is larger than the available data.')
 
             # find the number of normal samples (i.e., not poisoned) samples in the 
             # training data. then create the randomized data set that has Nn normal data
@@ -159,11 +180,11 @@ def experiment(data, box, cv, output):
                                            np.concatenate((ytrk[idx_normal], ya[idx_adversarial]))
 
             # run feature selection with the training data that has adversarial samples
-            sf_adv_jmi, sf_adv_mim, sf_adv_mrmr, sf_adv_mifs = \
-                JMI.jmi(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
-                MIM.mim(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
-                MRMR.mrmr(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
-                MIFS.mifs(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX]
+            sf_adv_jmi, sf_adv_mim, sf_adv_mrmr, sf_adv_mifs = run_feature_selection(Xtrk_poisoned, ytrk_poisoned, n_selected_features)
+                # JMI.jmi(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
+                # MIM.mim(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
+                # MRMR.mrmr(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX], \
+                # MIFS.mifs(Xtrk_poisoned, ytrk_poisoned, n_selected_features=n_selected_features)[FEAT_IDX]
 
             # calculate the accumulated jaccard and kuncheva performances for each of the 
             # feature selection algorithms 
@@ -190,5 +211,5 @@ if __name__ == '__main__':
             print('Running ' + data + ' - box:' + box)
             try: 
                 experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
-            except: 
+            except:
                 print(' ... ERROR ...')
