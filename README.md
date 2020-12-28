@@ -15,8 +15,8 @@ To run `scripts/poison_clean_data.py` you need to `pip install -r scripts/requir
 
 ## Running the Experiments  
 
+To run `runexp.py` you need to `pip install -r scripts/requirements.txt`.
 
-To run the experiments, you need to install the same requirements above as well as [skfeature](https://jundongl.github.io/scikit-feature/). 
 ```
 python runexp.py 
 ``` 
