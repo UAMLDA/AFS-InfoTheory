@@ -21,11 +21,17 @@
 
 import numpy as np 
 import pandas as pd 
-import skfeature as skf
+
 import argparse
 
 from utils import kuncheva, jaccard
+import sys
+sys.path.append("./scikit-feature/")
+import skfeature as skf
 from skfeature.function.information_theoretical_based import JMI, MIM, MRMR, MIFS
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -47,7 +53,7 @@ FEAT_IDX = 0
 CV = 5
 # dataset names 
 # did not run 
-#   - miniboone, connect-4
+#   - miniboone, connect-4, ozone, spambase
 DATA = [
         'conn-bench-sonar-mines-rocks',
         'ionosphere',
@@ -55,8 +61,8 @@ DATA = [
         'oocytes_trisopterus_nucleus_2f', 
         'statlog-german-credit', 
         'molec-biol-promoter', 
-        'ozone', 
-        'spambase',
+        #'ozone', 
+        #'spambase',
         'parkinsons', 
         'oocytes_merluccius_nucleus_4d',
         'musk-1', 
@@ -85,6 +91,19 @@ def run_feature_selection(X, Y, n_selected_features):
         lst.append(MIFS.mifs(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
 
     return lst
+
+def KNN_classification(X_tr, y_tr, X_te, y_te):
+        scaler = StandardScaler()
+        scaler.fit(X_tr)
+
+        X_tr = scaler.transform(X_tr)
+        X_te = scaler.transform(X_te)
+    
+        clf1 = KNeighborsClassifier(n_neighbors=5)
+        clf1.fit(X_tr, y_tr)
+        y_pred_knn = clf1.predict(X_te)
+        accuracy_KNN = accuracy_score(y_te, y_pred_knn)
+        return(accuracy_KNN)
 
 def experiment(data, box, cv, output):
     """
@@ -139,8 +158,9 @@ def experiment(data, box, cv, output):
     n_selected_features = int(Xn.shape[1]*SEL_PERCENT)+1
 
     # zero the results out 
-    err_jaccard, err_kuncheva = np.zeros((NPR, NALG)), np.zeros((NPR, NALG))    
-
+    err_jaccard, err_kuncheva = np.zeros((NPR, NALG)), np.zeros((NPR, NALG))
+    KNN_accuracy_norm, KNN_accuracy_pois = np.zeros((1,NALG)), np.zeros((NPR,NALG))
+    
     # run `cv` randomized experiments. note this is not performing cross-validation, rather
     # we are going to use randomized splits of the data.  
     for _ in range(cv): 
@@ -151,7 +171,24 @@ def experiment(data, box, cv, output):
         # run feature selection on the baseline dataset without an adversarial data. this 
         # will serve as the baseline. use a parallel assignment to speed things up. 
         sf_base_jmi, sf_base_mim, sf_base_mrmr, sf_base_mifs = run_feature_selection(Xtrk, ytrk, n_selected_features)
-
+        
+        Xtr_jmi = Xtrk[:, sf_base_jmi]
+        Xtr_mim = Xtrk[:, sf_base_mim]
+        Xtr_mrmr = Xtrk[:, sf_base_mrmr]
+        Xtr_mifs = Xtrk[:, sf_base_mifs]
+        
+        Xte_jmi = Xtek[:, sf_base_jmi]
+        Xte_mim = Xtek[:, sf_base_mim]
+        Xte_mrmr = Xtek[:, sf_base_mrmr]
+        Xte_mifs = Xtek[:, sf_base_mifs]
+        
+        # KNN_accuracy_norm table gives us the classification accuracy score of feature selection
+        # algorithms performed on untainted data, that can be used for further analysis
+        KNN_accuracy_norm[0, 0] += KNN_classification(Xtr_mim, ytrk, Xte_mim, ytek)
+        KNN_accuracy_norm[0, 1] += KNN_classification(Xtr_mifs, ytrk, Xte_mifs, ytek)
+        KNN_accuracy_norm[0, 2] += KNN_classification(Xtr_mrmr, ytrk, Xte_mrmr, ytek)
+        KNN_accuracy_norm[0, 3] += KNN_classification(Xtr_jmi, ytrk, Xte_jmi, ytek)
+                
         # loop over the number of poisoning ratios that we need to evaluate
         for n in range(NPR): 
 
@@ -178,6 +215,16 @@ def experiment(data, box, cv, output):
             # run feature selection with the training data that has adversarial samples
             sf_adv_jmi, sf_adv_mim, sf_adv_mrmr, sf_adv_mifs = run_feature_selection(Xtrk_poisoned, ytrk_poisoned, n_selected_features)
 
+            Xtrk_poisoned_JMI = Xtrk_poisoned[:, sf_adv_jmi]
+            Xtrk_poisoned_MIM = Xtrk_poisoned[:, sf_adv_mim]
+            Xtrk_poisoned_MRMR = Xtrk_poisoned[:, sf_adv_mrmr]
+            Xtrk_poisoned_MIFS = Xtrk_poisoned[:, sf_adv_mifs]
+            
+            Xtest_JMI = Xtek[:, sf_adv_jmi]
+            Xtest_MIM = Xtek[:, sf_adv_mim]
+            Xtest_MRMR = Xtek[:, sf_adv_mrmr]
+            Xtest_MIFS = Xtek[:, sf_adv_mifs]
+                       
             # calculate the accumulated jaccard and kuncheva performances for each of the 
             # feature selection algorithms 
             err_jaccard[n, 0] += jaccard(sf_adv_mim, sf_base_mim)
@@ -189,10 +236,22 @@ def experiment(data, box, cv, output):
             err_kuncheva[n, 1] += kuncheva(sf_adv_mifs, sf_base_mifs, Xtrk.shape[1])
             err_kuncheva[n, 2] += kuncheva(sf_adv_mrmr, sf_base_mrmr, Xtrk.shape[1])
             err_kuncheva[n, 3] += kuncheva(sf_adv_jmi, sf_base_jmi, Xtrk.shape[1])
+                      
+            # KNN_accuracy_norm table gives the classification accuracy score of feature selection
+            # algorithms performed on poisoned data
+            KNN_accuracy_pois[n, 0] += KNN_classification(Xtrk_poisoned_MIM, ytrk_poisoned, Xtest_MIM, ytek)
+            KNN_accuracy_pois[n, 1] += KNN_classification(Xtrk_poisoned_MIFS, ytrk_poisoned, Xtest_MIFS, ytek)
+            KNN_accuracy_pois[n, 2] += KNN_classification(Xtrk_poisoned_MRMR, ytrk_poisoned, Xtest_MRMR, ytek)
+            KNN_accuracy_pois[n, 3] += KNN_classification(Xtrk_poisoned_JMI, ytrk_poisoned, Xtest_JMI, ytek)
 
     # scale the kuncheva and jaccard statistics by 1.0/cv then write the output file
-    err_jaccard,  err_kuncheva = err_jaccard/cv, err_kuncheva/cv
-    np.savez(output, err_jaccard=err_jaccard, err_kuncheva=err_kuncheva)
+    err_jaccard,  err_kuncheva  = err_jaccard/cv, err_kuncheva/cv
+    KNN_accuracy_pois, KNN_accuracy_norm = KNN_accuracy_pois/cv, KNN_accuracy_norm/cv
+    np.savez(output, err_jaccard=err_jaccard, err_kuncheva=err_kuncheva, KNN_accuracy_pois=KNN_accuracy_pois, KNN_accuracy_norm = KNN_accuracy_norm)
+    print("Err_jaccard\n", err_jaccard)
+    print("Err_kuncheva\n", err_kuncheva)
+    print("KNN Accuracy score on untainted data\n ", KNN_accuracy_norm)
+    print("KNN Accuracy score on poisoned data\n ", KNN_accuracy_pois)
 
     return None
 
@@ -201,7 +260,7 @@ if __name__ == '__main__':
     for data in DATA: 
         for box in BOX: 
             print('Running ' + data + ' - box:' + box)
-            try: 
-                experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
-            except:
-                print(' ... ERROR ...')
+            #try: 
+            experiment(data, box, CV, 'results/cumulative_results/' + data + '_[xiao][' + box + ']_results.npz')
+            #except:
+            #    print(' ... ERROR ...')
