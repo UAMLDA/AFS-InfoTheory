@@ -27,6 +27,7 @@ import argparse
 from utils import kuncheva, jaccard
 from skfeature.function.information_theoretical_based import JMI, MIM, MRMR, MIFS
 
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 
 # -----------------------------------------------------------------------
@@ -72,18 +73,27 @@ def run_feature_selection(X, Y, n_selected_features):
     lst = []
     
     if PARALLEL:
+        # with multiprocessing.Pool(processes=4) as pool:
+        #     lst.append(pool.apply(JMI.jmi, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+        #     lst.append(pool.apply(MIM.mim, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+        #     lst.append(pool.apply(MRMR.mrmr, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+        #     lst.append(pool.apply(MIFS.mifs, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+            
+        # lst = [l[FEAT_IDX] for l in lst]
+        
         with ProcessPoolExecutor(max_workers=4) as executor:
             lst.append(executor.submit(JMI.jmi, X, Y, n_selected_features=n_selected_features))
             lst.append(executor.submit(MIM.mim, X, Y, n_selected_features=n_selected_features))
             lst.append(executor.submit(MRMR.mrmr, X, Y, n_selected_features=n_selected_features))
             lst.append(executor.submit(MIFS.mifs, X, Y, n_selected_features=n_selected_features))   
-            lst = [l.result()[FEAT_IDX] for l in lst]
+        lst = [l.result()[FEAT_IDX] for l in lst]
     else:
         lst.append(JMI.jmi(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
         lst.append(MIM.mim(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
         lst.append(MRMR.mrmr(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
         lst.append(MIFS.mifs(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
 
+    print(lst)
     return lst
 
 def experiment(data, box, cv, output):
@@ -203,5 +213,5 @@ if __name__ == '__main__':
             print('Running ' + data + ' - box:' + box)
             try: 
                 experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
-            except:
-                print(' ... ERROR ...')
+            except Exception as e:
+                print(f' ... ERROR ... {e}')
