@@ -93,7 +93,6 @@ def run_feature_selection(X, Y, n_selected_features):
         lst.append(MRMR.mrmr(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
         lst.append(MIFS.mifs(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
 
-    print(lst)
     return lst
 
 def experiment(data, box, cv, output):
@@ -213,5 +212,5 @@ if __name__ == '__main__':
             print('Running ' + data + ' - box:' + box)
             try: 
                 experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
-            except Exception as e:
-                print(f' ... ERROR ... {e}')
+            except:
+                print(f' ... ERROR ... ')
