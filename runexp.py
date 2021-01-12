@@ -34,6 +34,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 
 from concurrent.futures import ProcessPoolExecutor
+from itertools import combinations
 
 # -----------------------------------------------------------------------
 # # setup program constants
@@ -56,20 +57,21 @@ CV = 5
 #   - miniboone, connect-4, ozone, spambase
 DATA = [
         'conn-bench-sonar-mines-rocks',
-        'ionosphere',
-        'bank',
-        'oocytes_trisopterus_nucleus_2f', 
-        'statlog-german-credit', 
-        'molec-biol-promoter', 
-        #'ozone', 
-        #'spambase',
-        'parkinsons', 
-        'oocytes_merluccius_nucleus_4d',
-        'musk-1', 
-        'musk-2', 
-        'chess-krvkp', 
-        'twonorm'
-        ]
+        # 'ionosphere',
+        # 'bank',
+        # 'oocytes_trisopterus_nucleus_2f', 
+        # 'statlog-german-credit', 
+        # 'molec-biol-promoter', 
+        # #'ozone', 
+        # #'spambase',
+        # 'parkinsons', 
+        # 'oocytes_merluccius_nucleus_4d',
+        # 'musk-1', 
+        # 'musk-2', 
+        # 'chess-krvkp', 
+        # 'twonorm'
+        
+]
 BOX = ['0.5', '1', '1.5', '2', '2.5', '5']
 # -----------------------------------------------------------------------
 
@@ -92,18 +94,34 @@ def run_feature_selection(X, Y, n_selected_features):
 
     return lst
 
-def KNN_classification(X_tr, y_tr, X_te, y_te):
-        scaler = StandardScaler()
-        scaler.fit(X_tr)
+def err_KNN_classification(X_tr, y_tr, X_te, y_te):
+    scaler = StandardScaler()
+    scaler.fit(X_tr)
 
-        X_tr = scaler.transform(X_tr)
-        X_te = scaler.transform(X_te)
+    X_tr = scaler.transform(X_tr)
+    X_te = scaler.transform(X_te)
     
-        clf1 = KNeighborsClassifier(n_neighbors=5)
-        clf1.fit(X_tr, y_tr)
-        y_pred_knn = clf1.predict(X_te)
-        accuracy_KNN = accuracy_score(y_te, y_pred_knn)
-        return(accuracy_KNN)
+    clf1 = KNeighborsClassifier(n_neighbors=5)
+    clf1.fit(X_tr, y_tr)
+    y_pred_knn = clf1.predict(X_te)
+    accuracy_KNN = accuracy_score(y_te, y_pred_knn)
+    error = np.mean(y_pred_knn != y_te)
+    return(error)
+
+# comb_kuncheva function is used to find the stability among feature sets calculated for at each cv for every npr
+# fset is a list of 9 lists(npr=9) that has features for every pass, 
+# ex: JMI_fset [[f1,f2,f3], [f1,f2,f3], [f1,f2,f3], [f1,f2,f3]...., [f1,f2,f3]]
+# combination() is used to create non repeatable pairs(for r=2), ex: iter = ABCD; comb = combination(iter, 2) will give
+# comb = AB, AC, AD, BC, BD, CD
+def comb_kuncheva(fset, r, CV, no_of_col):
+    fin = []
+    for i in fset:
+        comb = list(combinations(i, r))     # creates non-repeatable pairs of features, ex: (f1,f2), (f1,f3), (f2,f3)
+        kun = 0
+        for a in comb:
+            kun += kuncheva(a[0], a[1], no_of_col)
+        fin.append(kun/CV)
+    return np.array(fin).T
 
 def experiment(data, box, cv, output):
     """
@@ -149,7 +167,7 @@ def experiment(data, box, cv, output):
     # change the labels from +/-1 to [0,1]
     ya[ya==-1], yn[yn==-1] = 0, 0
 
-    # calculate the rattios of data that would be used for training and hold out  
+    # calculate the ratios of data that would be used for training and hold out  
     p0, p1 = 1./cv, (1. - 1./cv)
     N = len(Xn)
     # calculate the total number of training and testing samples and set the numbfer of 
@@ -157,9 +175,24 @@ def experiment(data, box, cv, output):
     Ntr, Nte = int(p1*N), int(p0*N)
     n_selected_features = int(Xn.shape[1]*SEL_PERCENT)+1
 
-    # zero the results out 
+    # zero the results out : err_jaccard and err_kuncheva are 9x4 matrices
     err_jaccard, err_kuncheva = np.zeros((NPR, NALG)), np.zeros((NPR, NALG))
-    KNN_accuracy_norm, KNN_accuracy_pois = np.zeros((1,NALG)), np.zeros((NPR,NALG))
+    # For M3(KNN classification error) analysis: err_KNN_norm will have just one row(1x4) because it only only contains normal data
+    # err_KNN_norm is a 9x4 matrix
+    err_KNN_norm, err_KNN_pois = np.zeros((1,NALG)), np.zeros((NPR,NALG))   
+    
+    # Empty lists that will hold feature sets for all npr
+    MIM_fset = []
+    MIFS_fset = []
+    MRMR_fset = []
+    JMI_fset = []
+   
+   # creating list of empty lists  
+    for n in range (NPR):
+        MIM_fset.append([])
+        MIFS_fset.append([])
+        MRMR_fset.append([])
+        JMI_fset.append([])
     
     # run `cv` randomized experiments. note this is not performing cross-validation, rather
     # we are going to use randomized splits of the data.  
@@ -172,22 +205,22 @@ def experiment(data, box, cv, output):
         # will serve as the baseline. use a parallel assignment to speed things up. 
         sf_base_jmi, sf_base_mim, sf_base_mrmr, sf_base_mifs = run_feature_selection(Xtrk, ytrk, n_selected_features)
         
-        Xtr_jmi = Xtrk[:, sf_base_jmi]
         Xtr_mim = Xtrk[:, sf_base_mim]
-        Xtr_mrmr = Xtrk[:, sf_base_mrmr]
         Xtr_mifs = Xtrk[:, sf_base_mifs]
+        Xtr_mrmr = Xtrk[:, sf_base_mrmr]
+        Xtr_jmi = Xtrk[:, sf_base_jmi]
         
-        Xte_jmi = Xtek[:, sf_base_jmi]
         Xte_mim = Xtek[:, sf_base_mim]
-        Xte_mrmr = Xtek[:, sf_base_mrmr]
         Xte_mifs = Xtek[:, sf_base_mifs]
+        Xte_mrmr = Xtek[:, sf_base_mrmr]
+        Xte_jmi = Xtek[:, sf_base_jmi]
         
-        # KNN_accuracy_norm table gives us the classification accuracy score of feature selection
+        # err_KNN_norm table gives us the classification accuracy score of feature selection
         # algorithms performed on untainted data, that can be used for further analysis
-        KNN_accuracy_norm[0, 0] += KNN_classification(Xtr_mim, ytrk, Xte_mim, ytek)
-        KNN_accuracy_norm[0, 1] += KNN_classification(Xtr_mifs, ytrk, Xte_mifs, ytek)
-        KNN_accuracy_norm[0, 2] += KNN_classification(Xtr_mrmr, ytrk, Xte_mrmr, ytek)
-        KNN_accuracy_norm[0, 3] += KNN_classification(Xtr_jmi, ytrk, Xte_jmi, ytek)
+        err_KNN_norm[0, 0] += err_KNN_classification(Xtr_mim, ytrk, Xte_mim, ytek)
+        err_KNN_norm[0, 1] += err_KNN_classification(Xtr_mifs, ytrk, Xte_mifs, ytek)
+        err_KNN_norm[0, 2] += err_KNN_classification(Xtr_mrmr, ytrk, Xte_mrmr, ytek)
+        err_KNN_norm[0, 3] += err_KNN_classification(Xtr_jmi, ytrk, Xte_jmi, ytek)
                 
         # loop over the number of poisoning ratios that we need to evaluate
         for n in range(NPR): 
@@ -211,19 +244,19 @@ def experiment(data, box, cv, output):
                                           np.random.permutation(len(ya))[:Np]
             Xtrk_poisoned, ytrk_poisoned = np.concatenate((Xtrk[idx_normal], Xa[idx_adversarial])), \
                                            np.concatenate((ytrk[idx_normal], ya[idx_adversarial]))
-
+            
             # run feature selection with the training data that has adversarial samples
             sf_adv_jmi, sf_adv_mim, sf_adv_mrmr, sf_adv_mifs = run_feature_selection(Xtrk_poisoned, ytrk_poisoned, n_selected_features)
-
-            Xtrk_poisoned_JMI = Xtrk_poisoned[:, sf_adv_jmi]
-            Xtrk_poisoned_MIM = Xtrk_poisoned[:, sf_adv_mim]
-            Xtrk_poisoned_MRMR = Xtrk_poisoned[:, sf_adv_mrmr]
-            Xtrk_poisoned_MIFS = Xtrk_poisoned[:, sf_adv_mifs]
             
-            Xtest_JMI = Xtek[:, sf_adv_jmi]
+            Xtrk_poisoned_MIM = Xtrk_poisoned[:, sf_adv_mim]
+            Xtrk_poisoned_MIFS = Xtrk_poisoned[:, sf_adv_mifs]
+            Xtrk_poisoned_MRMR = Xtrk_poisoned[:, sf_adv_mrmr]           
+            Xtrk_poisoned_JMI = Xtrk_poisoned[:, sf_adv_jmi]
+            
             Xtest_MIM = Xtek[:, sf_adv_mim]
-            Xtest_MRMR = Xtek[:, sf_adv_mrmr]
             Xtest_MIFS = Xtek[:, sf_adv_mifs]
+            Xtest_MRMR = Xtek[:, sf_adv_mrmr]
+            Xtest_JMI = Xtek[:, sf_adv_jmi]
                        
             # calculate the accumulated jaccard and kuncheva performances for each of the 
             # feature selection algorithms 
@@ -237,21 +270,39 @@ def experiment(data, box, cv, output):
             err_kuncheva[n, 2] += kuncheva(sf_adv_mrmr, sf_base_mrmr, Xtrk.shape[1])
             err_kuncheva[n, 3] += kuncheva(sf_adv_jmi, sf_base_jmi, Xtrk.shape[1])
                       
-            # KNN_accuracy_norm table gives the classification accuracy score of feature selection
+            # err_KNN_pois table gives the classification accuracy score of feature selection
             # algorithms performed on poisoned data
-            KNN_accuracy_pois[n, 0] += KNN_classification(Xtrk_poisoned_MIM, ytrk_poisoned, Xtest_MIM, ytek)
-            KNN_accuracy_pois[n, 1] += KNN_classification(Xtrk_poisoned_MIFS, ytrk_poisoned, Xtest_MIFS, ytek)
-            KNN_accuracy_pois[n, 2] += KNN_classification(Xtrk_poisoned_MRMR, ytrk_poisoned, Xtest_MRMR, ytek)
-            KNN_accuracy_pois[n, 3] += KNN_classification(Xtrk_poisoned_JMI, ytrk_poisoned, Xtest_JMI, ytek)
+            err_KNN_pois[n, 0] += err_KNN_classification(Xtrk_poisoned_MIM, ytrk_poisoned, Xtest_MIM, ytek)
+            err_KNN_pois[n, 1] += err_KNN_classification(Xtrk_poisoned_MIFS, ytrk_poisoned, Xtest_MIFS, ytek)
+            err_KNN_pois[n, 2] += err_KNN_classification(Xtrk_poisoned_MRMR, ytrk_poisoned, Xtest_MRMR, ytek)
+            err_KNN_pois[n, 3] += err_KNN_classification(Xtrk_poisoned_JMI, ytrk_poisoned, Xtest_JMI, ytek)
 
+            # Storing all the features in corresponding feature selection algo list
+            MIM_fset[n].append(sf_adv_mim)
+            MIFS_fset[n].append(sf_base_mifs)
+            MRMR_fset[n].append(sf_base_mrmr)
+            JMI_fset[n].append(sf_adv_jmi)
+    
+    MIM_stability_score = comb_kuncheva(MIM_fset, 2, cv, Xtrk.shape[1])
+    MIFS_stability_score = comb_kuncheva(MIFS_fset, 2, cv, Xtrk.shape[1])        
+    MRMR_stability_score = comb_kuncheva(MRMR_fset, 2, cv, Xtrk.shape[1])
+    JMI_stability_score = comb_kuncheva(JMI_fset, 2, cv, Xtrk.shape[1])
+    
+    feature_stability = np.column_stack((MIM_stability_score, MIFS_stability_score, MRMR_stability_score, JMI_stability_score))
+                  
     # scale the kuncheva and jaccard statistics by 1.0/cv then write the output file
     err_jaccard,  err_kuncheva  = err_jaccard/cv, err_kuncheva/cv
-    KNN_accuracy_pois, KNN_accuracy_norm = KNN_accuracy_pois/cv, KNN_accuracy_norm/cv
-    np.savez(output, err_jaccard=err_jaccard, err_kuncheva=err_kuncheva, KNN_accuracy_pois=KNN_accuracy_pois, KNN_accuracy_norm = KNN_accuracy_norm)
+    err_KNN_pois, err_KNN_norm = err_KNN_pois/cv, err_KNN_norm/cv
+    np.savez(output, M1 = feature_stability, err_jaccard=err_jaccard, M2=err_kuncheva, M3_pois=err_KNN_pois, M3_norm = err_KNN_norm)
+    
     print("Err_jaccard\n", err_jaccard)
     print("Err_kuncheva\n", err_kuncheva)
-    print("KNN Accuracy score on untainted data\n ", KNN_accuracy_norm)
-    print("KNN Accuracy score on poisoned data\n ", KNN_accuracy_pois)
+    print("KNN Accuracy score on untainted data\n ", err_KNN_norm)
+    print("KNN Accuracy score on poisoned data\n ", err_KNN_pois)
+    print("MIM stability score\n", MIM_stability_score.T)
+    #print("shape", MIM_stability_score.shape)
+    print("JMI stability score\n", JMI_stability_score)
+    print("Feature_stability", feature_stability)
 
     return None
 
@@ -261,6 +312,6 @@ if __name__ == '__main__':
         for box in BOX: 
             print('Running ' + data + ' - box:' + box)
             #try: 
-            experiment(data, box, CV, 'results/cumulative_results/' + data + '_[xiao][' + box + ']_results.npz')
+            experiment(data, box, CV, 'results/M1_M2_M3/' + data + '_[xiao][' + box + ']_results.npz')
             #except:
             #    print(' ... ERROR ...')
