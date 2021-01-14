@@ -120,7 +120,7 @@ def comb_kuncheva(fset, r, CV, no_of_col):
         kun = 0
         for a in comb:
             kun += kuncheva(a[0], a[1], no_of_col)
-        fin.append(kun/CV)
+        fin.append(kun/len(comb))
     return np.array(fin).T
 
 def experiment(data, box, cv, output):
