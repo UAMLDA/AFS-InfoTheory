@@ -56,7 +56,7 @@ CV = 5
 # did not run 
 #   - miniboone, connect-4, ozone, spambase
 DATA = [
-        'conn-bench-sonar-mines-rocks',
+        # 'conn-bench-sonar-mines-rocks',
         # 'ionosphere',
         # 'bank',
         # 'oocytes_trisopterus_nucleus_2f', 
@@ -68,8 +68,8 @@ DATA = [
         # 'oocytes_merluccius_nucleus_4d',
         # 'musk-1', 
         # 'musk-2', 
-        # 'chess-krvkp', 
-        # 'twonorm'
+        'chess-krvkp', 
+        'twonorm'
         
 ]
 BOX = ['0.5', '1', '1.5', '2', '2.5', '5']
@@ -178,7 +178,7 @@ def experiment(data, box, cv, output):
     # zero the results out : err_jaccard and err_kuncheva are 9x4 matrices
     err_jaccard, err_kuncheva = np.zeros((NPR, NALG)), np.zeros((NPR, NALG))
     # For M3(KNN classification error) analysis: err_KNN_norm will have just one row(1x4) because it only only contains normal data
-    # err_KNN_norm is a 9x4 matrix
+    # err_KNN_pois is a 9x4 matrix
     err_KNN_norm, err_KNN_pois = np.zeros((1,NALG)), np.zeros((NPR,NALG))   
     
     # Empty lists that will hold feature sets for all npr
