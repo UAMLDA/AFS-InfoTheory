@@ -56,23 +56,23 @@ CV = 5
 # did not run 
 #   - miniboone, connect-4, ozone, spambase
 DATA = [
-        # 'conn-bench-sonar-mines-rocks',
-        # 'ionosphere',
+        'conn-bench-sonar-mines-rocks',
+        'ionosphere',
         # 'bank',
         # 'oocytes_trisopterus_nucleus_2f', 
         # 'statlog-german-credit', 
-        # 'molec-biol-promoter', 
+        'molec-biol-promoter', 
         # #'ozone', 
         # #'spambase',
         # 'parkinsons', 
-        # 'oocytes_merluccius_nucleus_4d',
-        # 'musk-1', 
+        'oocytes_merluccius_nucleus_4d',
+        'musk-1', 
         # 'musk-2', 
-        'chess-krvkp', 
+        # 'chess-krvkp', 
         'twonorm'
         
 ]
-BOX = ['0.5', '1', '1.5', '2', '2.5', '5']
+BOX = ['0.5', '1', '1.5', '2', '2.5'] # 5]
 # -----------------------------------------------------------------------
 
 def run_feature_selection(X, Y, n_selected_features):
@@ -295,15 +295,6 @@ def experiment(data, box, cv, output):
     err_KNN_pois, err_KNN_norm = err_KNN_pois/cv, err_KNN_norm/cv
     np.savez(output, M1 = feature_stability, err_jaccard=err_jaccard, M2=err_kuncheva, M3_pois=err_KNN_pois, M3_norm = err_KNN_norm)
     
-    print("Err_jaccard\n", err_jaccard)
-    print("Err_kuncheva\n", err_kuncheva)
-    print("KNN Accuracy score on untainted data\n ", err_KNN_norm)
-    print("KNN Accuracy score on poisoned data\n ", err_KNN_pois)
-    print("MIM stability score\n", MIM_stability_score.T)
-    #print("shape", MIM_stability_score.shape)
-    print("JMI stability score\n", JMI_stability_score)
-    print("Feature_stability", feature_stability)
-
     return None
 
 if __name__ == '__main__': 
@@ -312,6 +303,6 @@ if __name__ == '__main__':
         for box in BOX: 
             print('Running ' + data + ' - box:' + box)
             #try: 
-            experiment(data, box, CV, 'results/M1_M2_M3/' + data + '_[xiao][' + box + ']_results.npz')
+            experiment(data, box, CV, 'results/reduced_Boxsize/' + data + '_[xiao][' + box + ']_results.npz')
             #except:
             #    print(' ... ERROR ...')
