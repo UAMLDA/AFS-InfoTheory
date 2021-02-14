@@ -33,6 +33,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 from itertools import combinations
 
@@ -80,12 +81,20 @@ def run_feature_selection(X, Y, n_selected_features):
     lst = []
     
     if PARALLEL:
+        # with multiprocessing.Pool(processes=4) as pool:
+        #     lst.append(pool.apply(JMI.jmi, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+        #     lst.append(pool.apply(MIM.mim, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+        #     lst.append(pool.apply(MRMR.mrmr, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+        #     lst.append(pool.apply(MIFS.mifs, args=(X, Y), kwds={'n_selected_features': n_selected_features}))
+            
+        # lst = [l[FEAT_IDX] for l in lst]
+        
         with ProcessPoolExecutor(max_workers=4) as executor:
             lst.append(executor.submit(JMI.jmi, X, Y, n_selected_features=n_selected_features))
             lst.append(executor.submit(MIM.mim, X, Y, n_selected_features=n_selected_features))
             lst.append(executor.submit(MRMR.mrmr, X, Y, n_selected_features=n_selected_features))
             lst.append(executor.submit(MIFS.mifs, X, Y, n_selected_features=n_selected_features))   
-            lst = [l.result()[FEAT_IDX] for l in lst]
+        lst = [l.result()[FEAT_IDX] for l in lst]
     else:
         lst.append(JMI.jmi(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
         lst.append(MIM.mim(X, Y, n_selected_features=n_selected_features)[FEAT_IDX])
@@ -306,3 +315,4 @@ if __name__ == '__main__':
             experiment(data, box, CV, 'results/reduced_Boxsize/' + data + '_[xiao][' + box + ']_results.npz')
             #except:
             #    print(' ... ERROR ...')
+
