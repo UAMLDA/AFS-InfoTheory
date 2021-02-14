@@ -316,12 +316,3 @@ if __name__ == '__main__':
             #except:
             #    print(' ... ERROR ...')
 
-# if __name__ == '__main__': 
-
-#     for data in DATA: 
-#         for box in BOX: 
-#             print('Running ' + data + ' - box:' + box)
-#             try: 
-#                 experiment(data, box, CV, 'results/' + data + '_[xiao][' + box + ']_results.npz')
-#             except:
-#                 print(f' ... ERROR ... ')
