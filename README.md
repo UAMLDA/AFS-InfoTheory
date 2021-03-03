@@ -11,11 +11,9 @@
 
 
 ## Bug
-
-    Changed
-  -X_tr, y_tr, X_te, y_te = X[i][:Ntr], y[i][Ntr], X[i][Nte:], y[i][Nte:]
-                    to 
-  -X_tr, y_tr, X_te, y_te = X[i][:Ntr], y[i][:Ntr], X[i][-Nte:], y[i][-Nte:]      
+  - X_tr, y_tr, X_te, y_te = X[i][:Ntr], y[i][Ntr], X[i][Nte:], y[i][Nte:]
+                    
+  - X_tr, y_tr, X_te, y_te = X[i][:Ntr], y[i][:Ntr], X[i][-Nte:], y[i][-Nte:]      
 
 ## New files are:
   - runexp_extra.py
