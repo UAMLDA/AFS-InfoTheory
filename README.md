@@ -1,22 +1,23 @@
-# AFS-InfoTheory
+# Branch: Extra
 
 
-## Preparing the Data 
-
-To run `scripts/poison_clean_data.py` you need to `pip install -r scripts/requirements.txt`.
-
-- To create attacks, run the script `scripts/poison_clean_data.py`. It should resume where it left off.
-- Currently it is running from the smallest to the largest datasets located in `data/filenames_by_samples.txt`.
-- Attack file naming convention is:
-  - (filename no path)\_[(type)][(projection)].(extension)
-- All output files go to `data/attacks`. All original files are in `data/clean`.
+## Extra Changes:
+Max poisoning ratio: 0.3
+POI_RNG: [.01, .025, .05, .075, .1, .125, .15, .175, .2, .25, .3]
+BOX = ['0.5', '1', '1.5', '2', '2.5', '5', '10', '15', '20']
+CV = 10
+ALGS = [JMI, MIM, MRMR, MIFS, CMIM, DISR, ICAP]
 
 
 
-## Running the Experiments  
+## Bug
 
-To run `runexp.py` you need to `pip install -r scripts/requirements.txt`.
+X_tr, y_tr, X_te, y_te = X[i][:Ntr], y[i][Ntr], X[i][Nte:], y[i][Nte:]
+                    to 
+X_tr, y_tr, X_te, y_te = X[i][:Ntr], y[i][:Ntr], X[i][-Nte:], y[i][-Nte:]      
 
-```
-python runexp.py 
-``` 
+## New files are:
+runexp_extra.py
+Extra_experiments contains plots and npz files
+Extra_exp_data: contains clean data and attack data
+Extra_plots.ipynb: notebook that contain code to generate plots
