@@ -1,0 +1,13 @@
+molec-biol-promoter.csv
+breast-cancer-wisc-prog.csv
+conn-bench-sonar-mines-rocks.csv
+ionosphere.csv
+musk-1.csv
+cylinder-bands.csv
+breast-cancer-wisc-diag.csv
+statlog-german-credit.csv
+oocytes_merluccius_nucleus_4d.csv
+ozone.csv
+chess-krvkp.csv
+spambase.csv
+twonorm.csv
